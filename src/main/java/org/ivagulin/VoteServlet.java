@@ -13,7 +13,7 @@ import org.ivagulin.rest.Vote;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-@WebServlet("/api/v1/vote")
+@WebServlet("/api/v1/poll")
 public class VoteServlet extends HttpServlet {
 	private static final long serialVersionUID = 1525755577336095361L;
 
