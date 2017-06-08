@@ -1,7 +1,5 @@
 package org.ivagulin.rest;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 public class Vote {
@@ -9,8 +7,6 @@ public class Vote {
 	private String email;
 	
 	@NotNull
-	@Min(1)
-	@Max(9)
 	private Integer language;
 	
 	
