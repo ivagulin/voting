@@ -28,9 +28,6 @@ public class VoteCollectorBean {
 	static public final String KEY_LANGUAGE_VOTES = "language_votes";
 	static public final String KEY_EMAIL2USER = "email2user";
 	
-	@PersistenceContext
-	private EntityManager em;
-	
 	private Jedis jc;
 	
 	private ConcurrentMap<Integer, AtomicLong> languageVotes = new ConcurrentHashMap<Integer, AtomicLong>();
@@ -65,7 +62,7 @@ public class VoteCollectorBean {
 		languageCounter.incrementAndGet();
 	}
 	
-	@Schedule(minute="*/1", hour="*")
+	@Schedule(minute="*/1", hour="*", persistent=false)
 	public void flushVotes(){
 		Pipeline p = jc.pipelined();
 		for(String email: emailVotes.keySet()){
