@@ -1,18 +1,11 @@
 package org.ivagulin;
 
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
-
-import javax.annotation.PostConstruct;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.Schedule;
-import javax.ejb.Singleton;
-import javax.ejb.TransactionAttribute;
-import javax.ejb.TransactionAttributeType;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import java.util.regex.Pattern;
 
 import org.ivagulin.rest.User;
 import org.ivagulin.rest.Vote;
@@ -20,29 +13,40 @@ import org.ivagulin.rest.Vote;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 
-@Singleton
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-@TransactionAttribute(TransactionAttributeType.SUPPORTS)
-public class VoteCollectorBean {
+public class VoteCollector  {
 	static public final String KEY_USER_VOTES = "user_votes";
 	static public final String KEY_LANGUAGE_VOTES = "language_votes";
 	static public final String KEY_EMAIL2USER = "email2user";
 	
-	private Jedis jc;
+	private final Jedis jc;
+	private final Timer t;
+	private final Pattern emailPattern = Pattern.compile("[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}");
 	
 	private ConcurrentMap<Integer, AtomicLong> languageVotes = new ConcurrentHashMap<Integer, AtomicLong>();
 	private ConcurrentMap<String, AtomicLong> emailVotes = new ConcurrentHashMap<String, AtomicLong>();	
 	
-	@PostConstruct
-	public void init(){
+	public VoteCollector(){
 		jc = new Jedis("localhost", 6379);
+		
 		for(int i=0; i<10; i++)
 			languageVotes.put(i, new AtomicLong(0));
+		
 		for(String email: jc.hkeys(KEY_EMAIL2USER))
 			emailVotes.putIfAbsent(email, new AtomicLong(0));
+		
+		t = new Timer(true);
+		t.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				flushVotes();
+			}
+		}, 60*1000, 60*1000);
 	}
 	
 	public void registerUser(User user){
+		if(!emailPattern.matcher(user.getEmail()).matches()){
+			throw new IllegalArgumentException("User email don't match pattern "+emailPattern.pattern());
+		}
 		Long setRV = jc.hsetnx(KEY_EMAIL2USER, user.getEmail(), user.getName());
 		if(setRV.intValue() == 0){
 			throw new IllegalArgumentException("User already exists");
@@ -62,7 +66,6 @@ public class VoteCollectorBean {
 		languageCounter.incrementAndGet();
 	}
 	
-	@Schedule(minute="*/1", hour="*", persistent=false)
 	public void flushVotes(){
 		Pipeline p = jc.pipelined();
 		for(String email: emailVotes.keySet()){

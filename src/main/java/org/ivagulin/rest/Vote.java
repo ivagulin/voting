@@ -1,12 +1,8 @@
 package org.ivagulin.rest;
 
-import javax.validation.constraints.NotNull;
-
 public class Vote {
-	@NotNull
 	private String email;
 	
-	@NotNull
 	private Integer language;
 	
 	
